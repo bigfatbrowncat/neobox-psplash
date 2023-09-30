@@ -1,4 +1,4 @@
-/* 
+/*
  *  pslash - a lightweight framebuffer splashscreen for embedded devices. 
  *
  *  Copyright (c) 2006 Matthew Allum <mallum@o-hand.com>
@@ -141,6 +141,48 @@ parse_command (PSplashFB *fb, char *string)
   return 0;
 }
 
+struct frame {
+    int img_stride;
+    int img_width;
+    int img_height;
+    int img_bpp;
+    uint8* img_data;
+};
+
+struct frame frames[2] = {
+        {
+                NEOBOX_GRAY_IMG_ROWSTRIDE,
+                NEOBOX_GRAY_IMG_WIDTH,
+                NEOBOX_GRAY_IMG_HEIGHT,
+                NEOBOX_GRAY_IMG_BYTES_PER_PIXEL,
+                NEOBOX_GRAY_IMG_RLE_PIXEL_DATA
+        },
+        {
+                NEOBOX_IMG_ROWSTRIDE,
+                NEOBOX_IMG_WIDTH,
+                NEOBOX_IMG_HEIGHT,
+                NEOBOX_IMG_BYTES_PER_PIXEL,
+                NEOBOX_IMG_RLE_PIXEL_DATA
+        }
+};
+
+void draw_frame(PSplashFB *fb, int frame_index) {
+
+    psplash_fb_draw_image (fb,
+                           (fb->width  - frames[frame_index].img_width)/2,
+#if PSPLASH_IMG_FULLSCREEN
+                           (fb->height - frames[frame_index].img_height)/2,
+#else
+            (fb->height * PSPLASH_IMG_SPLIT_NUMERATOR
+              / PSPLASH_IMG_SPLIT_DENOMINATOR - frames[frame_index].img_height)/2,
+#endif
+                           frames[frame_index].img_width,
+                           frames[frame_index]. img_height,
+                           frames[frame_index].img_bpp,
+                           frames[frame_index].img_stride,
+                           frames[frame_index].img_data);
+}
+
 void 
 psplash_main (PSplashFB *fb, int pipe_fd, int timeout) 
 {
@@ -166,6 +208,8 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
 
   end = command;
 
+  int frame_index = 0;
+
   while (1)
   {
       if (timeout != 0) err = select(pipe_fd+1, &descriptors, NULL, NULL, &tv);
@@ -184,20 +228,9 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
       long long elapsed_usec = (current_time.tv_sec - start_time.tv_sec) * 1000000;
       elapsed_usec += (current_time.tv_usec - start_time.tv_usec);
 
-      if (elapsed_usec > 300000 /* 300 ms */ ) {
-          psplash_fb_draw_image (fb,
-            (fb->width  - NEOBOX_IMG_WIDTH)/2,
-#if PSPLASH_IMG_FULLSCREEN
-              (fb->height - NEOBOX_IMG_HEIGHT)/2,
-#else
-              (fb->height * PSPLASH_IMG_SPLIT_NUMERATOR
-              / PSPLASH_IMG_SPLIT_DENOMINATOR - NEOBOX_IMG_HEIGHT)/2,
-#endif
-              NEOBOX_IMG_WIDTH,
-              NEOBOX_IMG_HEIGHT,
-              NEOBOX_IMG_BYTES_PER_PIXEL,
-              NEOBOX_IMG_ROWSTRIDE,
-              NEOBOX_IMG_RLE_PIXEL_DATA);
+      if (elapsed_usec > 1000000 /* 1000 ms */ && frame_index == 0 ) {
+          frame_index = 1;
+          draw_frame(fb, frame_index);
       }
 
       length += read (pipe_fd, end, sizeof(command) - (end - command));
@@ -331,19 +364,7 @@ main (int argc, char** argv)
                         PSPLASH_BACKGROUND_COLOR);
 
   /* Draw the Neobox logo  */
-  psplash_fb_draw_image (fb, 
-			 (fb->width  - NEOBOX_GRAY_IMG_WIDTH)/2,
-#if PSPLASH_IMG_FULLSCREEN
-			 (fb->height - NEOBOX_GRAY_IMG_HEIGHT)/2,
-#else
-			 (fb->height * PSPLASH_IMG_SPLIT_NUMERATOR
-			  / PSPLASH_IMG_SPLIT_DENOMINATOR - NEOBOX_IMG_HEIGHT)/2,
-#endif
-			 NEOBOX_GRAY_IMG_WIDTH,
-			 NEOBOX_GRAY_IMG_HEIGHT,
-			 NEOBOX_GRAY_IMG_BYTES_PER_PIXEL,
-			 NEOBOX_GRAY_IMG_ROWSTRIDE,
-			 NEOBOX_GRAY_IMG_RLE_PIXEL_DATA);
+    draw_frame(fb, 0);
 
 #ifdef PSPLASH_SHOW_PROGRESS_BAR
   /* Draw progress bar border */
