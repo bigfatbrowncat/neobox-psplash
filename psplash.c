@@ -22,8 +22,6 @@
 #include <systemd/sd-daemon.h>
 #endif
 
-#include <time.h>
-
 #include FONT_HEADER
 
 #define SPLIT_LINE_POS(fb)                                  \
@@ -81,11 +79,7 @@ psplash_draw_progress (PSplashFB *fb, int value)
 
   if (value > 0)
     {
-        if (value < 50) {
-            draw_frame(fb, 0);
-        } else {
-            draw_frame(fb, 1);
-        }
+
 #ifdef PSPLASH_SHOW_PROGRESS_BAR
 
       barwidth = (CLAMP(value,0,100) * width) / 100;
@@ -113,40 +107,9 @@ psplash_draw_progress (PSplashFB *fb, int value)
 		width, barwidth);
 }
 
-static int 
-parse_command (PSplashFB *fb, char *string)
-{
-  char *command;
-
-  DBG("got cmd %s", string);
-	
-  if (strcmp(string,"QUIT") == 0)
-    return 1;
-
-  command = strtok(string," ");
-
-  if (!strcmp(command,"MSG"))
-    {
-      char *arg = strtok(NULL, "\0");
-
-      if (arg)
-        psplash_draw_msg (fb, arg);
-    } 
-  else  if (!strcmp(command,"PROGRESS"))
-    {
-      char *arg = strtok(NULL, "\0");
-
-      if (arg)
-        psplash_draw_progress (fb, atoi(arg));
-    } 
-  else if (!strcmp(command,"QUIT"))
-    {
-      return 1;
-    }
-
-  psplash_fb_flip(fb, 0);
-  return 0;
-}
+// The frame contents. Progress and message
+char* message = PSPLASH_STARTUP_MSG;
+int progress = 0;
 
 struct frame {
     int img_stride;
@@ -173,8 +136,17 @@ struct frame frames[2] = {
         }
 };
 
-void draw_frame(PSplashFB *fb, int frame_index) {
+void draw_frame(PSplashFB *fb) {
 
+    int frame_index = progress / 50;
+    if (frame_index < 0) frame_index = 0;
+    if (frame_index > 1) frame_index = 1;
+
+    /* Clear the background with #ecece1 */
+    psplash_fb_draw_rect (fb, 0, 0, fb->width, fb->height,
+                          PSPLASH_BACKGROUND_COLOR);
+
+    /* Draw the Neobox logo  */
     psplash_fb_draw_image (fb,
                            (fb->width  - frames[frame_index].img_width)/2,
 #if PSPLASH_IMG_FULLSCREEN
@@ -188,7 +160,73 @@ void draw_frame(PSplashFB *fb, int frame_index) {
                            frames[frame_index].img_bpp,
                            frames[frame_index].img_stride,
                            frames[frame_index].img_data);
+
+#ifdef PSPLASH_SHOW_PROGRESS_BAR
+    /* Draw progress bar border */
+  psplash_fb_draw_image (fb,
+			 (fb->width  - BAR_IMG_WIDTH)/2,
+			 SPLIT_LINE_POS(fb),
+			 BAR_IMG_WIDTH,
+			 BAR_IMG_HEIGHT,
+			 BAR_IMG_BYTES_PER_PIXEL,
+			 BAR_IMG_ROWSTRIDE,
+			 BAR_IMG_RLE_PIXEL_DATA);
+#endif
+
+    psplash_draw_progress (fb, progress);
+
+    psplash_draw_msg (fb, message);
+
+//    /* Scene set so let's flip the buffers. */
+//    /* The first time we also synchronize the buffers so we can build on an
+//     * existing scene. After the first scene is set in both buffers, only the
+//     * text and progress bar change which overwrite the specific areas with every
+//     * update.
+//     */
+    psplash_fb_flip(fb, 1);
+
 }
+
+
+static int 
+parse_command (PSplashFB *fb, char *string)
+{
+  char *command;
+
+  DBG("got cmd %s", string);
+	
+  if (strcmp(string,"QUIT") == 0)
+    return 1;
+
+  command = strtok(string," ");
+
+  if (!strcmp(command,"MSG"))
+    {
+      char *arg = strtok(NULL, "\0");
+
+      if (arg) {
+          if (message != PSPLASH_STARTUP_MSG) { free(message); }
+          message = strdup(arg);
+      }
+    }
+  else  if (!strcmp(command,"PROGRESS"))
+    {
+      char *arg = strtok(NULL, "\0");
+        if (arg) {
+            progress = atoi(arg);
+        }
+    }
+  else if (!strcmp(command,"QUIT"))
+    {
+      return 1;
+    }
+
+    draw_frame(fb);
+
+
+  return 0;
+}
+
 
 void 
 psplash_main (PSplashFB *fb, int pipe_fd, int timeout) 
@@ -205,10 +243,6 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
   tv.tv_sec = timeout;
   tv.tv_usec = 0;
 
-  struct timeval start_time;
-  clock_gettime(CLOCK_MONOTONIC, &start_time);
-  real_time.tv_sec = 0;
-  real_time.tv_usec = 100000;  // 100ms
 
   FD_ZERO(&descriptors);
   FD_SET(pipe_fd, &descriptors);
@@ -230,10 +264,6 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
           return;
       }
 
-      struct timeval current_time;
-      clock_gettime(CLOCK_MONOTONIC, &current_time);
-      long long elapsed_usec = (current_time.tv_sec - start_time.tv_sec) * 1000000;
-      elapsed_usec += (current_time.tv_usec - start_time.tv_usec);
 
 //      if (elapsed_usec > 1000000 /* 1000 ms */ && frame_index == 0 ) {
 //          frame_index = 1;
@@ -366,38 +396,11 @@ main (int argc, char** argv)
   sd_notify(0, "READY=1");
 #endif
 
-  /* Clear the background with #ecece1 */
-  psplash_fb_draw_rect (fb, 0, 0, fb->width, fb->height,
-                        PSPLASH_BACKGROUND_COLOR);
+  /* Draw the initial frame  */
+    draw_frame(fb);
 
-  /* Draw the Neobox logo  */
-    draw_frame(fb, 0);
 
-#ifdef PSPLASH_SHOW_PROGRESS_BAR
-  /* Draw progress bar border */
-  psplash_fb_draw_image (fb,
-			 (fb->width  - BAR_IMG_WIDTH)/2,
-			 SPLIT_LINE_POS(fb),
-			 BAR_IMG_WIDTH,
-			 BAR_IMG_HEIGHT,
-			 BAR_IMG_BYTES_PER_PIXEL,
-			 BAR_IMG_ROWSTRIDE,
-			 BAR_IMG_RLE_PIXEL_DATA);
-#endif
 
-  psplash_draw_progress (fb, 0);
-
-#ifdef PSPLASH_STARTUP_MSG
-  psplash_draw_msg (fb, PSPLASH_STARTUP_MSG);
-#endif
-
-  /* Scene set so let's flip the buffers. */
-  /* The first time we also synchronize the buffers so we can build on an
-   * existing scene. After the first scene is set in both buffers, only the
-   * text and progress bar change which overwrite the specific areas with every
-   * update.
-   */
-  psplash_fb_flip(fb, 1);
 
   psplash_main (fb, pipe_fd, 0);
 
