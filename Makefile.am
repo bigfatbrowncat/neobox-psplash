@@ -6,7 +6,14 @@ psplash_SOURCES = psplash.c psplash.h psplash-fb.c psplash-fb.h \
                   psplash-console.c psplash-console.h           \
 		  psplash-colors.h psplash-config.h		\
 		  psplash-neobox-img.h psplash-bar-img.h $(FONT_NAME)-font.h
-BUILT_SOURCES = neobox-320x480-gray-img.h neobox-320x480-img.h psplash-bar-img.h
+BUILT_SOURCES = \
+    neobox-320x480-gray-img.h \
+    neobox-320x480-20pc-img.h \
+    neobox-320x480-40pc-img.h \
+    neobox-320x480-60pc-img.h \
+    neobox-320x480-80pc-img.h \
+    neobox-320x480-img.h \
+    psplash-bar-img.h
 
 psplash_write_SOURCES = psplash-write.c psplash.h
 
@@ -30,6 +37,16 @@ psplash-bar-img.h: base-images/psplash-bar.png
 	$(top_srcdir)/make-image-header.sh $< BAR
 neobox-320x480-gray-img.h: base-images/neobox-320x480-gray.png
 	$(top_srcdir)/make-image-header.sh $< NEOBOX_GRAY
+
+neobox-320x480-20pc-img.h: base-images/neobox-320x480-20pc.png
+	$(top_srcdir)/make-image-header.sh $< NEOBOX_20PC
+neobox-320x480-40pc-img.h: base-images/neobox-320x480-40pc.png
+	$(top_srcdir)/make-image-header.sh $< NEOBOX_40PC
+neobox-320x480-60pc-img.h: base-images/neobox-320x480-60pc.png
+	$(top_srcdir)/make-image-header.sh $< NEOBOX_60PC
+neobox-320x480-80pc-img.h: base-images/neobox-320x480-80pc.png
+	$(top_srcdir)/make-image-header.sh $< NEOBOX_80PC
+
 neobox-320x480-img.h: base-images/neobox-320x480.png
 	$(top_srcdir)/make-image-header.sh $< NEOBOX
 

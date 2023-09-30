@@ -15,6 +15,10 @@
 #include "psplash-colors.h"
 
 #include "neobox-320x480-img.h"
+#include "neobox-320x480-20pc-img.h"
+#include "neobox-320x480-40pc-img.h"
+#include "neobox-320x480-60pc-img.h"
+#include "neobox-320x480-80pc-img.h"
 #include "neobox-320x480-gray-img.h"
 #include "psplash-bar-img.h"
 
@@ -65,6 +69,7 @@ psplash_draw_msg (PSplashFB *fb, const char *msg)
 			msg);
 }
 
+#ifdef PSPLASH_SHOW_PROGRESS_BAR
 void
 psplash_draw_progress (PSplashFB *fb, int value)
 {
@@ -80,7 +85,6 @@ psplash_draw_progress (PSplashFB *fb, int value)
   if (value > 0)
     {
 
-#ifdef PSPLASH_SHOW_PROGRESS_BAR
 
       barwidth = (CLAMP(value,0,100) * width) / 100;
       psplash_fb_draw_rect (fb, x + barwidth, y,
@@ -88,11 +92,9 @@ psplash_draw_progress (PSplashFB *fb, int value)
 			PSPLASH_BAR_BACKGROUND_COLOR);
       psplash_fb_draw_rect (fb, x, y, barwidth,
 			    height, PSPLASH_BAR_COLOR);
-#endif /* PSPLASH_SHOW_PROGRESS_BAR */
     }
   else
     {
-#ifdef PSPLASH_SHOW_PROGRESS_BAR
       barwidth = (CLAMP(-value,0,100) * width) / 100;
       psplash_fb_draw_rect (fb, x, y,
     			width - barwidth, height,
@@ -100,15 +102,16 @@ psplash_draw_progress (PSplashFB *fb, int value)
       psplash_fb_draw_rect (fb, x + width - barwidth,
 			    y, barwidth, height,
 			    PSPLASH_BAR_COLOR);
-#endif /* PSPLASH_SHOW_PROGRESS_BAR */
     }
 
   DBG("value: %i, width: %i, barwidth :%i\n", value,
 		width, barwidth);
 }
+#endif /* PSPLASH_SHOW_PROGRESS_BAR */
 
 // The frame contents. Progress and message
-char* message = PSPLASH_STARTUP_MSG;
+char* message_start = PSPLASH_STARTUP_MSG;
+char* message;
 int progress = 0;
 
 struct frame {
@@ -119,13 +122,41 @@ struct frame {
     uint8* img_data;
 };
 
-struct frame frames[2] = {
+struct frame frames[6] = {
         {
                 NEOBOX_GRAY_IMG_ROWSTRIDE,
                 NEOBOX_GRAY_IMG_WIDTH,
                 NEOBOX_GRAY_IMG_HEIGHT,
                 NEOBOX_GRAY_IMG_BYTES_PER_PIXEL,
                 NEOBOX_GRAY_IMG_RLE_PIXEL_DATA
+        },
+        {
+                NEOBOX_20PC_IMG_ROWSTRIDE,
+                NEOBOX_20PC_IMG_WIDTH,
+                NEOBOX_20PC_IMG_HEIGHT,
+                NEOBOX_20PC_IMG_BYTES_PER_PIXEL,
+                NEOBOX_20PC_IMG_RLE_PIXEL_DATA
+        },
+        {
+                NEOBOX_40PC_IMG_ROWSTRIDE,
+                NEOBOX_40PC_IMG_WIDTH,
+                NEOBOX_40PC_IMG_HEIGHT,
+                NEOBOX_40PC_IMG_BYTES_PER_PIXEL,
+                NEOBOX_40PC_IMG_RLE_PIXEL_DATA
+        },
+        {
+                NEOBOX_60PC_IMG_ROWSTRIDE,
+                NEOBOX_60PC_IMG_WIDTH,
+                NEOBOX_60PC_IMG_HEIGHT,
+                NEOBOX_60PC_IMG_BYTES_PER_PIXEL,
+                NEOBOX_60PC_IMG_RLE_PIXEL_DATA
+        },
+        {
+                NEOBOX_80PC_IMG_ROWSTRIDE,
+                NEOBOX_80PC_IMG_WIDTH,
+                NEOBOX_80PC_IMG_HEIGHT,
+                NEOBOX_80PC_IMG_BYTES_PER_PIXEL,
+                NEOBOX_80PC_IMG_RLE_PIXEL_DATA
         },
         {
                 NEOBOX_IMG_ROWSTRIDE,
@@ -138,9 +169,9 @@ struct frame frames[2] = {
 
 void draw_frame(PSplashFB *fb) {
 
-    int frame_index = progress / 50;
+    int frame_index = progress / 16;
     if (frame_index < 0) frame_index = 0;
-    if (frame_index > 1) frame_index = 1;
+    if (frame_index > 5) frame_index = 5;
 
     /* Clear the background with #ecece1 */
     psplash_fb_draw_rect (fb, 0, 0, fb->width, fb->height,
@@ -173,7 +204,9 @@ void draw_frame(PSplashFB *fb) {
 			 BAR_IMG_RLE_PIXEL_DATA);
 #endif
 
+#ifdef PSPLASH_SHOW_PROGRESS_BAR
     psplash_draw_progress (fb, progress);
+#endif
 
     psplash_draw_msg (fb, message);
 
@@ -205,7 +238,7 @@ parse_command (PSplashFB *fb, char *string)
       char *arg = strtok(NULL, "\0");
 
       if (arg) {
-          if (message != PSPLASH_STARTUP_MSG) { free(message); }
+          if (message != message_start) { free(message); }
           message = strdup(arg);
       }
     }
@@ -235,7 +268,6 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
   ssize_t        length = 0;
   fd_set         descriptors;
   struct timeval tv;
-  struct timeval real_time;
   char          *end;
   char          *cmd;
   char           command[2048];
@@ -248,8 +280,6 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
   FD_SET(pipe_fd, &descriptors);
 
   end = command;
-
-  int frame_index = 0;
 
   while (1)
   {
@@ -395,6 +425,8 @@ main (int argc, char** argv)
 #ifdef HAVE_SYSTEMD
   sd_notify(0, "READY=1");
 #endif
+
+    message = message_start;
 
   /* Draw the initial frame  */
     draw_frame(fb);
