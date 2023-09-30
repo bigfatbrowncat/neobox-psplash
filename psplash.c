@@ -174,8 +174,8 @@ void draw_frame(PSplashFB *fb) {
     if (frame_index > 5) frame_index = 5;
 
     /* Clear the background with #ecece1 */
-    psplash_fb_draw_rect (fb, 0, 0, fb->width, fb->height,
-                          PSPLASH_BACKGROUND_COLOR);
+    //psplash_fb_draw_rect (fb, 0, 0, fb->width, fb->height,
+    //                      PSPLASH_BACKGROUND_COLOR);
 
     /* Draw the Neobox logo  */
     psplash_fb_draw_image (fb,
