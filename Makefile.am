@@ -28,6 +28,6 @@ snapshot:
 
 psplash-bar-img.h: base-images/psplash-bar.png
 	$(top_srcdir)/make-image-header.sh $< BAR
-psplash-neobox-img.h: base-images/psplash-neobox.png
+psplash-neobox-img.h: base-images/neobox-320x480.png
 	$(top_srcdir)/make-image-header.sh $< NEOBOX
 
