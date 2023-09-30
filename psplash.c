@@ -15,11 +15,15 @@
 #include "psplash-colors.h"
 
 #include "neobox-320x480-img.h"
+#include "neobox-320x480-gray-img.h"
 #include "psplash-bar-img.h"
 
 #ifdef HAVE_SYSTEMD
 #include <systemd/sd-daemon.h>
 #endif
+
+#include <time.h>
+
 #include FONT_HEADER
 
 #define SPLIT_LINE_POS(fb)                                  \
@@ -144,6 +148,7 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
   ssize_t        length = 0;
   fd_set         descriptors;
   struct timeval tv;
+  struct timeval real_time;
   char          *end;
   char          *cmd;
   char           command[2048];
@@ -151,27 +156,50 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
   tv.tv_sec = timeout;
   tv.tv_usec = 0;
 
+  struct timeval start_time;
+  clock_gettime(CLOCK_MONOTONIC, &start_time);
+  real_time.tv_sec = 0;
+  real_time.tv_usec = 100000;  // 100ms
+
   FD_ZERO(&descriptors);
   FD_SET(pipe_fd, &descriptors);
 
   end = command;
 
-  while (1) 
-    {
-      if (timeout != 0) 
-	err = select(pipe_fd+1, &descriptors, NULL, NULL, &tv);
-      else
-	err = select(pipe_fd+1, &descriptors, NULL, NULL, NULL);
-      
-      if (err <= 0) 
-	{
-	  /*
-	  if (errno == EINTR)
-	    continue;
-	  */
-	  return;
-	}
-      
+  while (1)
+  {
+      if (timeout != 0) err = select(pipe_fd+1, &descriptors, NULL, NULL, &tv);
+      else err = select(pipe_fd+1, &descriptors, NULL, NULL, NULL);
+
+      if (err <= 0) {
+          /*
+          if (errno == EINTR)
+            continue;
+          */
+          return;
+      }
+
+      struct timeval current_time;
+      clock_gettime(CLOCK_MONOTONIC, &current_time);
+      long long elapsed_usec = (current_time.tv_sec - start_time.tv_sec) * 1000000;
+      elapsed_usec += (current_time.tv_usec - start_time.tv_usec);
+
+      if (elapsed_usec > 300000 /* 300 ms */ ) {
+          psplash_fb_draw_image (fb,
+            (fb->width  - NEOBOX_IMG_WIDTH)/2,
+#if PSPLASH_IMG_FULLSCREEN
+              (fb->height - NEOBOX_IMG_HEIGHT)/2,
+#else
+              (fb->height * PSPLASH_IMG_SPLIT_NUMERATOR
+              / PSPLASH_IMG_SPLIT_DENOMINATOR - NEOBOX_IMG_HEIGHT)/2,
+#endif
+              NEOBOX_IMG_WIDTH,
+              NEOBOX_IMG_HEIGHT,
+              NEOBOX_IMG_BYTES_PER_PIXEL,
+              NEOBOX_IMG_ROWSTRIDE,
+              NEOBOX_IMG_RLE_PIXEL_DATA);
+      }
+
       length += read (pipe_fd, end, sizeof(command) - (end - command));
 
       if (length == 0) 
@@ -304,18 +332,18 @@ main (int argc, char** argv)
 
   /* Draw the Neobox logo  */
   psplash_fb_draw_image (fb, 
-			 (fb->width  - NEOBOX_IMG_WIDTH)/2,
+			 (fb->width  - NEOBOX_GRAY_IMG_WIDTH)/2,
 #if PSPLASH_IMG_FULLSCREEN
-			 (fb->height - NEOBOX_IMG_HEIGHT)/2,
+			 (fb->height - NEOBOX_GRAY_IMG_HEIGHT)/2,
 #else
 			 (fb->height * PSPLASH_IMG_SPLIT_NUMERATOR
 			  / PSPLASH_IMG_SPLIT_DENOMINATOR - NEOBOX_IMG_HEIGHT)/2,
 #endif
-			 NEOBOX_IMG_WIDTH,
-			 NEOBOX_IMG_HEIGHT,
-			 NEOBOX_IMG_BYTES_PER_PIXEL,
-			 NEOBOX_IMG_ROWSTRIDE,
-			 NEOBOX_IMG_RLE_PIXEL_DATA);
+			 NEOBOX_GRAY_IMG_WIDTH,
+			 NEOBOX_GRAY_IMG_HEIGHT,
+			 NEOBOX_GRAY_IMG_BYTES_PER_PIXEL,
+			 NEOBOX_GRAY_IMG_ROWSTRIDE,
+			 NEOBOX_GRAY_IMG_RLE_PIXEL_DATA);
 
 #ifdef PSPLASH_SHOW_PROGRESS_BAR
   /* Draw progress bar border */

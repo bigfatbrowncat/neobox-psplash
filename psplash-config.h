@@ -18,7 +18,7 @@
 
 /* Bool indicating if the image is fullscreen, as opposed to split screen */
 #ifndef PSPLASH_IMG_FULLSCREEN
-#define PSPLASH_IMG_FULLSCREEN 0
+#define PSPLASH_IMG_FULLSCREEN 1
 #endif
 
 /* Bool indicated if the progress bar should be disabled */
