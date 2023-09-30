@@ -428,6 +428,10 @@ main (int argc, char** argv)
 
     message = message_start;
 
+    /* Initial clearing */
+    psplash_fb_draw_rect (fb, 0, 0, fb->width, fb->height,
+                          PSPLASH_BACKGROUND_COLOR);
+
   /* Draw the initial frame  */
     draw_frame(fb);
 
