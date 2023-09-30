@@ -13,8 +13,10 @@
 #include "psplash.h"
 #include "psplash-config.h"
 #include "psplash-colors.h"
-#include "psplash-neobox-img.h"
+
+#include "neobox-320x480-img.h"
 #include "psplash-bar-img.h"
+
 #ifdef HAVE_SYSTEMD
 #include <systemd/sd-daemon.h>
 #endif
