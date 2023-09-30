@@ -67,7 +67,6 @@ psplash_draw_msg (PSplashFB *fb, const char *msg)
 			msg);
 }
 
-#ifdef PSPLASH_SHOW_PROGRESS_BAR
 void
 psplash_draw_progress (PSplashFB *fb, int value)
 {
@@ -79,17 +78,27 @@ psplash_draw_progress (PSplashFB *fb, int value)
   width  = BAR_IMG_WIDTH - 8;
   height = BAR_IMG_HEIGHT - 8;
 
+
   if (value > 0)
     {
+        if (value < 50) {
+            draw_frame(fb, 0);
+        } else {
+            draw_frame(fb, 1);
+        }
+#ifdef PSPLASH_SHOW_PROGRESS_BAR
+
       barwidth = (CLAMP(value,0,100) * width) / 100;
       psplash_fb_draw_rect (fb, x + barwidth, y,
     			width - barwidth, height,
 			PSPLASH_BAR_BACKGROUND_COLOR);
       psplash_fb_draw_rect (fb, x, y, barwidth,
 			    height, PSPLASH_BAR_COLOR);
+#endif /* PSPLASH_SHOW_PROGRESS_BAR */
     }
   else
     {
+#ifdef PSPLASH_SHOW_PROGRESS_BAR
       barwidth = (CLAMP(-value,0,100) * width) / 100;
       psplash_fb_draw_rect (fb, x, y,
     			width - barwidth, height,
@@ -97,12 +106,12 @@ psplash_draw_progress (PSplashFB *fb, int value)
       psplash_fb_draw_rect (fb, x + width - barwidth,
 			    y, barwidth, height,
 			    PSPLASH_BAR_COLOR);
+#endif /* PSPLASH_SHOW_PROGRESS_BAR */
     }
 
   DBG("value: %i, width: %i, barwidth :%i\n", value,
 		width, barwidth);
 }
-#endif /* PSPLASH_SHOW_PROGRESS_BAR */
 
 static int 
 parse_command (PSplashFB *fb, char *string)
@@ -123,7 +132,6 @@ parse_command (PSplashFB *fb, char *string)
       if (arg)
         psplash_draw_msg (fb, arg);
     } 
- #ifdef PSPLASH_SHOW_PROGRESS_BAR
   else  if (!strcmp(command,"PROGRESS"))
     {
       char *arg = strtok(NULL, "\0");
@@ -131,8 +139,7 @@ parse_command (PSplashFB *fb, char *string)
       if (arg)
         psplash_draw_progress (fb, atoi(arg));
     } 
-#endif
-  else if (!strcmp(command,"QUIT")) 
+  else if (!strcmp(command,"QUIT"))
     {
       return 1;
     }
@@ -228,10 +235,10 @@ psplash_main (PSplashFB *fb, int pipe_fd, int timeout)
       long long elapsed_usec = (current_time.tv_sec - start_time.tv_sec) * 1000000;
       elapsed_usec += (current_time.tv_usec - start_time.tv_usec);
 
-      if (elapsed_usec > 1000000 /* 1000 ms */ && frame_index == 0 ) {
-          frame_index = 1;
-          draw_frame(fb, frame_index);
-      }
+//      if (elapsed_usec > 1000000 /* 1000 ms */ && frame_index == 0 ) {
+//          frame_index = 1;
+//          draw_frame(fb, frame_index);
+//      }
 
       length += read (pipe_fd, end, sizeof(command) - (end - command));
 
@@ -376,9 +383,9 @@ main (int argc, char** argv)
 			 BAR_IMG_BYTES_PER_PIXEL,
 			 BAR_IMG_ROWSTRIDE,
 			 BAR_IMG_RLE_PIXEL_DATA);
+#endif
 
   psplash_draw_progress (fb, 0);
-#endif
 
 #ifdef PSPLASH_STARTUP_MSG
   psplash_draw_msg (fb, PSPLASH_STARTUP_MSG);
